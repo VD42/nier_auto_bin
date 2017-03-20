@@ -589,7 +589,7 @@ mrb_utf8_from_locale(const char *str, size_t len)
   size_t mbssize, wcssize;
 
   if (len == 0)
-    return strdup("");
+    return _strdup("");
   if (len == -1)
     len = strlen(str);
   wcssize = MultiByteToWideChar(GetACP(), 0, str, len,  NULL, 0);
@@ -619,7 +619,7 @@ mrb_locale_from_utf8(const char *utf8, size_t len)
   size_t mbssize, wcssize;
 
   if (len == 0)
-    return strdup("");
+    return _strdup("");
   if (len == -1)
     len = strlen(utf8);
   wcssize = MultiByteToWideChar(CP_UTF8, 0, utf8, len,  NULL, 0);
