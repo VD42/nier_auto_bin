@@ -111,6 +111,12 @@
     <ClCompile Include="..\mruby\src\dump.c">
       <Filter>Source Files\mruby</Filter>
     </ClCompile>
+    <ClCompile Include="..\mruby\mrblib\mrblib.c">
+      <Filter>Source Files\mruby</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mruby\build\host\mrbgems\gem_init.c">
+      <Filter>Source Files\mruby</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\mruby\include\mrbconf.h">

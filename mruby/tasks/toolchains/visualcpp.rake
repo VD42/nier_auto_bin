@@ -1,8 +1,8 @@
 MRuby::Toolchain.new(:visualcpp) do |conf|
   [conf.cc].each do |cc|
-    cc.command = ENV['CC'] || 'cl.exe'
+    cc.command = ENV['CC'] || 'C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\cl.exe'
     # C4013: implicit function declaration
-    cc.flags = [ENV['CFLAGS'] || %w(/c /nologo /W3 /we4013 /Zi /MD /O2 /D_CRT_SECURE_NO_WARNINGS)]
+    cc.flags = [ENV['CFLAGS'] || %w(/c /nologo /W3 /we4013 /Zi /MD /O2 /D_CRT_SECURE_NO_WARNINGS /I"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include" /I"C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt" /I"c:\Program Files (x86)\Windows Kits\8.1\Include\um" /I"c:\Program Files (x86)\Windows Kits\8.1\Include\shared")]
     cc.defines = %w(DISABLE_GEMS MRB_STACK_EXTEND_DOUBLING)
     cc.option_include_path = '/I%s'
     cc.option_define = '/D%s'
@@ -19,8 +19,8 @@ MRuby::Toolchain.new(:visualcpp) do |conf|
   end
 
   conf.linker do |linker|
-    linker.command = ENV['LD'] || 'link.exe'
-    linker.flags = [ENV['LDFLAGS'] || %w(/NOLOGO /DEBUG /INCREMENTAL:NO /OPT:ICF /OPT:REF)]
+    linker.command = ENV['LD'] || 'C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe'
+    linker.flags = [ENV['LDFLAGS'] || %w(/NOLOGO /DEBUG /INCREMENTAL:NO /OPT:ICF /OPT:REF /LIBPATH:"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\lib" /LIBPATH:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.14393.0\ucrt\x86")]
     linker.libraries = %w()
     linker.library_paths = %w()
     linker.option_library = '%s.lib'
@@ -29,12 +29,12 @@ MRuby::Toolchain.new(:visualcpp) do |conf|
   end
 
   conf.archiver do |archiver|
-    archiver.command = ENV['AR'] || 'lib.exe'
+    archiver.command = ENV['AR'] || 'C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\lib.exe'
     archiver.archive_options = '/nologo /OUT:%{outfile} %{objs}'
   end
 
   conf.yacc do |yacc|
-    yacc.command = ENV['YACC'] || 'bison.exe'
+    yacc.command = ENV['YACC'] || 'C:\HashiCorp\Vagrant\embedded\bin\bison.exe'
     yacc.compile_options = '-o %{outfile} %{infile}'
   end
 

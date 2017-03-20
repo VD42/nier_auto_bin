@@ -242,6 +242,15 @@ int main(int argc, char ** argv)
 	std::string lang(argv[2]);
 	std::string dir_in(argv[3]);
 	std::string dir_out(argv[4]);
+
+	if (mode == "p" && argc < 6)
+	{
+		std::cout << "Unpack: nier_auto_bin.exe u <lang> <bins_dir> <text_dir>" << std::endl;
+		std::cout << "Pack: nier_auto_bin.exe p <lang> <bins_dir> <text_dir> <out_bins_dir>" << std::endl;
+		std::cout << "    lang: all / jp / us / fr / it / de / us / ko / cn" << std::endl;
+		return 0;
+	}
+
 	std::string bin_dir_out(mode == "p" ? argv[5] : "");
 
 	int lang_index = -1;
