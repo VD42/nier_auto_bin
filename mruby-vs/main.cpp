@@ -42,6 +42,44 @@ struct State
 	int index;
 };
 
+int new_string(mrb_state *mrb, mrb_irep *irep, mrb_value val)
+{
+	size_t i;
+	mrb_value *pv;
+
+	switch (mrb_type(val)) {
+	case MRB_TT_STRING:
+		for (i = 0; i<irep->plen; i++) {
+			mrb_int len;
+			pv = &irep->pool[i];
+
+			if (mrb_type(*pv) != MRB_TT_STRING) continue;
+			if ((len = RSTRING_LEN(*pv)) != RSTRING_LEN(val)) continue;
+			if (memcmp(RSTRING_PTR(*pv), RSTRING_PTR(val), len) == 0)
+				return i;
+		}
+		break;
+	default:
+		throw 0;
+		break;
+	}
+
+	irep->pool = (mrb_value*)mrb_realloc_simple(mrb, irep->pool, (irep->plen + 1) * sizeof(mrb_value));
+
+	pv = &irep->pool[irep->plen];
+	i = irep->plen++;
+
+	switch (mrb_type(val)) {
+	case MRB_TT_STRING:
+		*pv = mrb_str_pool(mrb, val);
+		break;
+	default:
+		throw 0;
+		break;
+	}
+	return i;
+}
+
 void codedump(mrb_state *mrb, mrb_irep *irep, State* state)
 {
 	int i;
@@ -107,6 +145,9 @@ void codedump(mrb_state *mrb, mrb_irep *irep, State* state)
 				if (state->read)
 				{
 					mrb_value v = irep->pool[GETARG_Bx(c)];
+					mrb_int len_test = RSTRING_LEN(v);
+					if (strlen(RSTRING_PTR(v)) != len_test)
+						throw 0;
 					state->texts.back().second.push_back(std::string(RSTRING_PTR(v), RSTRING_LEN(v)));
 					if (state->texts.back().second.size() == 8)
 						state->mode = 0;
@@ -125,37 +166,18 @@ void codedump(mrb_state *mrb, mrb_irep *irep, State* state)
 
 						if (str_index != -1)
 						{
-							struct RString *s = mrb_str_ptr(irep->pool[GETARG_Bx(c)]);
-							struct RString *ns;
-							const char *ptr;
-							mrb_int len;
+							int test_c = MKOP_ABx(GET_OPCODE(c), GETARG_A(c), GETARG_Bx(c));
+							if (test_c != c)
+								throw 0;
 
-							ns = (struct RString *)mrb_malloc(mrb, sizeof(struct RString));
-							ns->tt = MRB_TT_STRING;
-							ns->c = mrb->string_class;
-
-							ptr = state->texts[str_index].second[state->index].c_str();
-							len = state->texts[str_index].second[state->index].size();
-
-							if (len < RSTRING_EMBED_LEN_MAX) {
-								RSTR_SET_EMBED_FLAG(ns);
-								RSTR_SET_EMBED_LEN(ns, len);
-								if (ptr) {
-									memcpy(ns->as.ary, ptr, len);
-								}
-								ns->as.ary[len] = '\0';
-							}
-							else {
-								ns->as.heap.ptr = (char *)mrb_malloc(mrb, (size_t)len + 1);
-								ns->as.heap.len = len;
-								ns->as.heap.aux.capa = len;
-								if (ptr) {
-									memcpy(ns->as.heap.ptr, ptr, len);
-								}
-								ns->as.heap.ptr[len] = '\0';
-							}
-
-							irep->pool[GETARG_Bx(c)] = mrb_obj_value(ns);
+							mrb_value v_test = irep->pool[GETARG_Bx(c)];
+							mrb_value v = mrb_str_new(mrb, state->texts[str_index].second[state->index].c_str(), state->texts[str_index].second[state->index].size());
+							
+							int new_bx = new_string(mrb, irep, v);
+							//if (GETARG_Bx(c) != new_bx)
+							//	throw 0;
+							
+							irep->iseq[i] = MKOP_ABx(GET_OPCODE(c), GETARG_A(c), new_bx);
 						}
 					}
 					state->index++;
@@ -219,6 +241,12 @@ void write_line(std::ofstream & stream, std::string line)
 	stream.write("\r\n", 2);
 }
 
+void getline(std::ifstream & f, std::string & s)
+{
+	std::getline(f, s);
+	s = ReplaceAll(s.substr(0, s.size() - 1), "\\n", "\n");
+}
+
 int main(int argc, char ** argv)
 {
 	// u all "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin" "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin.txt"
@@ -226,6 +254,8 @@ int main(int argc, char ** argv)
 
 	// u all "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt"
 	// u us "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt2"
+
+	// u all "F:\___SOURCES___\nier\NieRAutomata™ .bin2" "F:\___SOURCES___\nier\NieRAutomata™ .bin_test.txt"
 
 	// p all "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt" "F:\___SOURCES___\nier\NieRAutomata™ .bin2"
 	// p us "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt2" "F:\___SOURCES___\nier\NieRAutomata™ .bin3"
@@ -287,15 +317,15 @@ int main(int argc, char ** argv)
 		std::ifstream f_cn(dir_out + "\\bin_cn.txt", std::ios::in | std::ios::binary);
 		while (!f_ids.eof())
 		{
-			std::string line_ids; std::getline(f_ids, line_ids);
-			std::string line_jp; if (lang == "all" || lang == "jp") std::getline(f_jp, line_jp);
-			std::string line_us; if (lang == "all" || lang == "us") std::getline(f_us, line_us);
-			std::string line_fr; if (lang == "all" || lang == "fr") std::getline(f_fr, line_fr);
-			std::string line_it; if (lang == "all" || lang == "it") std::getline(f_it, line_it);
-			std::string line_de; if (lang == "all" || lang == "de") std::getline(f_de, line_de);
-			std::string line_es; if (lang == "all" || lang == "es") std::getline(f_es, line_es);
-			std::string line_ko; if (lang == "all" || lang == "ko") std::getline(f_ko, line_ko);
-			std::string line_cn; if (lang == "all" || lang == "cn") std::getline(f_cn, line_cn);
+			std::string line_ids; getline(f_ids, line_ids);
+			std::string line_jp; if (lang == "all" || lang == "jp") getline(f_jp, line_jp);
+			std::string line_us; if (lang == "all" || lang == "us") getline(f_us, line_us);
+			std::string line_fr; if (lang == "all" || lang == "fr") getline(f_fr, line_fr);
+			std::string line_it; if (lang == "all" || lang == "it") getline(f_it, line_it);
+			std::string line_de; if (lang == "all" || lang == "de") getline(f_de, line_de);
+			std::string line_es; if (lang == "all" || lang == "es") getline(f_es, line_es);
+			std::string line_ko; if (lang == "all" || lang == "ko") getline(f_ko, line_ko);
+			std::string line_cn; if (lang == "all" || lang == "cn") getline(f_cn, line_cn);
 			
 			if (line_ids[0] == '[' && line_ids[1] == '[')
 			{
