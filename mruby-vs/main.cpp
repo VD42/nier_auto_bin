@@ -249,22 +249,23 @@ void getline(std::ifstream & f, std::string & s)
 
 int main(int argc, char ** argv)
 {
-	// u all "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin" "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin.txt"
-	// u us "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin" "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin.txt"
+	// u all "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin" "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin.txt" 1
+	// u us "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin" "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin.txt" 1
 
-	// u all "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt"
-	// u us "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt2"
+	// u all "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt" 1
+	// u us "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt2" 1
 
-	// u all "F:\___SOURCES___\nier\NieRAutomata™ .bin2" "F:\___SOURCES___\nier\NieRAutomata™ .bin_test.txt"
+	// u all "F:\___SOURCES___\nier\NieRAutomata™ .bin2" "F:\___SOURCES___\nier\NieRAutomata™ .bin_test.txt" 1
 
 	// p all "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt" "F:\___SOURCES___\nier\NieRAutomata™ .bin2"
 	// p us "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt2" "F:\___SOURCES___\nier\NieRAutomata™ .bin3"
 
-	if (argc < 5)
+	if (argc < 6)
 	{
-		std::cout << "Unpack: nier_auto_bin.exe u <lang> <bins_dir> <text_dir>" << std::endl;
+		std::cout << "Unpack: nier_auto_bin.exe u <lang> <bins_dir> <text_dir> <with_names>" << std::endl;
 		std::cout << "Pack: nier_auto_bin.exe p <lang> <bins_dir> <text_dir> <out_bins_dir>" << std::endl;
 		std::cout << "    lang: all / jp / us / fr / it / de / us / ko / cn" << std::endl;
+		std::cout << "    with_names: 0 - without names / 1 - with names" << std::endl;
 		return 0;
 	}
 
@@ -272,16 +273,10 @@ int main(int argc, char ** argv)
 	std::string lang(argv[2]);
 	std::string dir_in(argv[3]);
 	std::string dir_out(argv[4]);
-
-	if (mode == "p" && argc < 6)
-	{
-		std::cout << "Unpack: nier_auto_bin.exe u <lang> <bins_dir> <text_dir>" << std::endl;
-		std::cout << "Pack: nier_auto_bin.exe p <lang> <bins_dir> <text_dir> <out_bins_dir>" << std::endl;
-		std::cout << "    lang: all / jp / us / fr / it / de / us / ko / cn" << std::endl;
-		return 0;
-	}
-
+	std::string with_id_s(mode == "u" ? argv[5] : "");
 	std::string bin_dir_out(mode == "p" ? argv[5] : "");
+
+	bool with_id = (with_id_s == "1");
 
 	int lang_index = -1;
 	if (lang == "jp") lang_index = 0;
@@ -460,14 +455,14 @@ int main(int argc, char ** argv)
 					}
 
 					write_line(f_ids, files[i].second.texts[j].first);
-					write_line(f_jp, files[i].second.texts[j].second[0]);
-					write_line(f_us, files[i].second.texts[j].second[1]);
-					write_line(f_fr, files[i].second.texts[j].second[2]);
-					write_line(f_it, files[i].second.texts[j].second[3]);
-					write_line(f_de, files[i].second.texts[j].second[4]);
-					write_line(f_es, files[i].second.texts[j].second[5]);
-					write_line(f_ko, files[i].second.texts[j].second[6]);
-					write_line(f_cn, files[i].second.texts[j].second[7]);
+					write_line(f_jp, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[0]);
+					write_line(f_us, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[1]);
+					write_line(f_fr, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[2]);
+					write_line(f_it, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[3]);
+					write_line(f_de, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[4]);
+					write_line(f_es, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[5]);
+					write_line(f_ko, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[6]);
+					write_line(f_cn, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[7]);
 				}
 			}
 		}
@@ -486,7 +481,7 @@ int main(int argc, char ** argv)
 						continue;
 
 					write_line(f_ids, files[i].second.texts[j].first);
-					write_line(f_lang, files[i].second.texts[j].second[lang_index]);
+					write_line(f_lang, (with_id ? files[i].second.texts[j].first.substr(files[i].second.texts[j].first.find_last_of('_') + 1) + ": " : "") + files[i].second.texts[j].second[lang_index]);
 				}
 			}
 		}
