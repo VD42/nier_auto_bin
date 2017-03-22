@@ -37,12 +37,8 @@ char *replace(const char *s, char ch, const char *repl) {
 struct State
 {
 	bool read = true;
-	int mode = 0;
 	std::vector<std::pair<std::string, std::vector<std::string>>> texts;
-
 	int lang_index;
-	std::string id;
-	int index;
 };
 
 int new_string(mrb_state *mrb, mrb_irep *irep, mrb_value val)
@@ -87,129 +83,82 @@ void codedump(mrb_state *mrb, mrb_irep *irep, State* state)
 {
 	int i;
 	int ai;
-	mrb_code c;
+	mrb_code c_cur;
 
 	if (!irep) return;
 
-	for (i = 0; i < (int)irep->ilen; i++)
+	for (i = 9; i < (int)irep->ilen; i++)
 	{
 		ai = mrb_gc_arena_save(mrb);
-		c = irep->iseq[i];
-		switch (GET_OPCODE(c))
+		c_cur = irep->iseq[i];
+		if (GET_OPCODE(c_cur) == OP_SETCONST)
 		{
-		case OP_ARRAY:
-			if (state->mode == 0)
+			std::string id(mrb_sym2name(mrb, irep->syms[GETARG_Bx(c_cur)]));
+			int c_arr = irep->iseq[i - 1];
+			if (GET_OPCODE(c_arr) == OP_ARRAY && GETARG_C(c_arr) == 8)
 			{
-				if (GETARG_C(c) == 8)
-				{
-					state->mode = 1;
-					state->id = "";
-				}
-			}
-			else if (state->mode == 1)
-			{
-				state->mode = 0;
-			}
-			else if (state->mode == 2)
-			{
-				if (state->read)
-				{
-					if (!state->texts.back().second.empty())
-						throw 0;
-					state->texts.pop_back();
-				}
-				state->mode = 0;
-			}
-			break;
-		case OP_SETCONST:
-			if (state->mode == 1)
-			{
-				std::string id(mrb_sym2name(mrb, irep->syms[GETARG_Bx(c)]));
-				if (state->read)
-					state->texts.push_back(std::make_pair(id, std::vector<std::string>()));
-				state->id = id;
-				state->index = 0;
-				state->mode = 2;
-			}
-			else if (state->mode == 2)
-			{
-				if (state->read)
-				{
-					if (!state->texts.back().second.empty())
-						throw 0;
-					state->texts.pop_back();
-				}
-				state->mode = 0;
-			}
-			break;
-		case OP_STRING:
-			if (state->mode == 2)
-			{
-				if (state->read)
-				{
-					mrb_value v = irep->pool[GETARG_Bx(c)];
-					mrb_int len_test = RSTRING_LEN(v);
-					if (strlen(RSTRING_PTR(v)) != len_test)
-						throw 0;
-					state->texts.back().second.push_back(std::string(RSTRING_PTR(v), RSTRING_LEN(v)));
-					if (state->texts.back().second.size() == 8)
-						state->mode = 0;
-				}
-				else
-				{
-					if (state->lang_index == -1 || state->lang_index == state->index)
+				std::vector<int> c_strs(8);
+				c_strs[0] = irep->iseq[i - 9];
+				c_strs[1] = irep->iseq[i - 8];
+				c_strs[2] = irep->iseq[i - 7];
+				c_strs[3] = irep->iseq[i - 6];
+				c_strs[4] = irep->iseq[i - 5];
+				c_strs[5] = irep->iseq[i - 4];
+				c_strs[6] = irep->iseq[i - 3];
+				c_strs[7] = irep->iseq[i - 2];
+
+				bool all_right = true;
+				for (int j = 0; j < (int)c_strs.size(); j++)
+					if (GET_OPCODE(c_strs[j]) != OP_STRING)
 					{
-						int str_index = -1;
-						for (int i = 0; i < (int)state->texts.size(); i++)
-							if (state->texts[i].first == state->id)
-							{
-								str_index = i;
-								break;
-							}
+						all_right = false;
+						break;
+					}
 
-						if (str_index != -1)
+				if (all_right)
+				{
+					if (state->read)
+						state->texts.push_back(std::make_pair(id, std::vector<std::string>()));
+
+					for (int j = 0; j < (int)c_strs.size(); j++)
+					{
+						if (state->read)
 						{
-							int test_c = MKOP_ABx(GET_OPCODE(c), GETARG_A(c), GETARG_Bx(c));
-							if (test_c != c)
-								throw 0;
+							mrb_value v = irep->pool[GETARG_Bx(c_strs[j])];
+							mrb_int len_test = RSTRING_LEN(v);
+							state->texts.back().second.push_back(std::string(RSTRING_PTR(v), RSTRING_LEN(v)));
+						}
+						else
+						{
+							if (state->lang_index == -1 || state->lang_index == j)
+							{
+								int str_index = -1;
+								for (int i = 0; i < (int)state->texts.size(); i++)
+									if (state->texts[i].first == id)
+									{
+										str_index = i;
+										break;
+									}
 
-							mrb_value v_test = irep->pool[GETARG_Bx(c)];
-							mrb_value v = mrb_str_new(mrb, state->texts[str_index].second[state->index].c_str(), state->texts[str_index].second[state->index].size());
-							
-							int new_bx = new_string(mrb, irep, v);
-							//if (GETARG_Bx(c) != new_bx)
-							//	throw 0;
-							
-							irep->iseq[i] = MKOP_ABx(GET_OPCODE(c), GETARG_A(c), new_bx);
+								if (str_index != -1)
+								{
+									int test_c = MKOP_ABx(GET_OPCODE(c_strs[j]), GETARG_A(c_strs[j]), GETARG_Bx(c_strs[j]));
+									if (test_c != c_strs[j])
+										throw 0;
+
+									mrb_value v = mrb_str_new(mrb, state->texts[str_index].second[j].c_str(), state->texts[str_index].second[j].size());
+
+									int new_bx = new_string(mrb, irep, v);
+									//if (GETARG_Bx(c) != new_bx)
+									//	throw 0;
+
+									irep->iseq[i - 9 + j] = MKOP_ABx(GET_OPCODE(c_strs[j]), GETARG_A(c_strs[j]), new_bx);
+								}
+							}
 						}
 					}
-					state->index++;
-					if (state->index == 8)
-						state->mode = 0;
 				}
 			}
-			else if (state->mode == 1)
-			{
-				state->mode = 0;
-			}
-			break;
-		default:
-			int test = GET_OPCODE(c);
-			if (state->mode == 1)
-			{
-				state->mode = 0;
-			}
-			else if (state->mode == 2)
-			{
-				if (state->read)
-				{
-					if (!state->texts.back().second.empty())
-						throw 0;
-					state->texts.pop_back();
-				}
-				state->mode = 0;
-			}
-			break;
 		}
 		mrb_gc_arena_restore(mrb, ai);
 	}
@@ -338,8 +287,6 @@ void find_files(std::string mode, int lang_index, std::vector<std::pair<std::str
 			{
 				State st;
 				codedump_recur(state, irep, &st);
-				if (st.mode != 0)
-					throw 0;
 				files.push_back(std::make_pair(current_dir + "\\" + file_name, st));
 			}
 			if (mode == "p")
