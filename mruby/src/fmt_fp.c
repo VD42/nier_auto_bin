@@ -280,7 +280,7 @@ fmt_fp(struct fmt_args *f, long double y, int w, int p, int fl, int t)
   }
   else {
     estr=fmt_u(e<0 ? -e : e, ebuf);
-    while(ebuf-estr<2) *--estr='0';
+    while(ebuf-estr<3) *--estr='0';
     *--estr = (e<0 ? '-' : '+');
     *--estr = t;
     l += ebuf-estr;

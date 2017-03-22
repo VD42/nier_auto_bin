@@ -5,6 +5,9 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <list>
+#include <direct.h>
+#include <io.h>
 #include "mruby/dump.h"
 #include "mruby/../../src/opcode.h"
 #include "mruby/string.h"
@@ -247,6 +250,135 @@ void getline(std::ifstream & f, std::string & s)
 	s = ReplaceAll(s.substr(0, s.size() - 1), "\\n", "\n");
 }
 
+bool folderExists(const char* folderName) {
+	if (_access(folderName, 0) == -1) {
+		//File not found
+		return false;
+	}
+
+	DWORD attr = GetFileAttributes((LPCSTR)folderName);
+	if (!(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+		// File is not a directory
+		return false;
+	}
+
+	return true;
+}
+
+bool createFolder(std::string folderName) {
+	std::list<std::string> folderLevels;
+	char* c_str = (char*)folderName.c_str();
+
+	// Point to end of the string
+	char* strPtr = &c_str[strlen(c_str) - 1];
+
+	// Create a list of the folders which do not currently exist
+	do {
+		if (folderExists(c_str)) {
+			break;
+		}
+		// Break off the last folder name, store in folderLevels list
+		do {
+			strPtr--;
+		} while ((*strPtr != '\\') && (*strPtr != '/') && (strPtr >= c_str));
+		folderLevels.push_front(std::string(strPtr + 1));
+		strPtr[1] = 0;
+	} while (strPtr >= c_str);
+
+	if (_chdir(c_str)) {
+		return true;
+	}
+
+	// Create the folders iteratively
+	for (auto it = folderLevels.begin(); it != folderLevels.end(); it++) {
+		if (CreateDirectory(it->c_str(), NULL) == 0) {
+			return true;
+		}
+		_chdir(it->c_str());
+	}
+
+	return false;
+}
+
+void find_files(std::string mode, int lang_index, std::vector<std::pair<std::string, State>> & files, std::string dir_in, std::string bin_dir_out, std::string current_dir)
+{
+	WIN32_FIND_DATA fd;
+	HANDLE hFind = ::FindFirstFile((dir_in + (current_dir.empty() ? "" : "\\") + current_dir + R"(\*)").c_str(), &fd);
+	if (hFind != INVALID_HANDLE_VALUE)
+	{
+		do
+		{
+			std::string file_name(fd.cFileName);
+			if (file_name == "." || file_name == "..")
+				continue;
+
+			if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+			{
+				find_files(mode, lang_index, files, dir_in, bin_dir_out, current_dir + (current_dir.empty() ? "" : "\\") + file_name);
+				continue;
+			}
+
+			if (file_name.substr(file_name.size() - 4) != ".bin")
+				continue;
+
+			std::cout << (current_dir + "\\" + file_name) << std::endl;
+
+			mrb_state * state = mrb_open();
+
+			FILE * fin = nullptr;
+			errno_t err1 = fopen_s(&fin, (dir_in + (current_dir.empty() ? "" : "\\") + current_dir + "\\" + file_name).c_str(), "rb");
+			if (!fin)
+				throw 0;
+			mrb_irep * irep = mrb_read_irep_file(state, fin);
+			fclose(fin);
+
+			//codedump_recur(state, irep);
+
+			if (mode == "u")
+			{
+				State st;
+				codedump_recur(state, irep, &st);
+				if (st.mode != 0)
+					throw 0;
+				files.push_back(std::make_pair(current_dir + "\\" + file_name, st));
+			}
+			if (mode == "p")
+			{
+				State st;
+				for (int i = 0; i < (int)files.size(); i++)
+				{
+					if (files[i].first == current_dir + "\\" + file_name)
+					{
+						st = files[i].second;
+						break;
+					}
+				}
+				st.read = false;
+				st.lang_index = lang_index;
+				codedump_recur(state, irep, &st);
+
+				char cpath[MAX_PATH + 1];
+				_getcwd(cpath, MAX_PATH);
+				if (createFolder(bin_dir_out + (current_dir.empty() ? "" : "\\") + current_dir))
+					throw 0;
+				_chdir(cpath);
+				FILE * fout = nullptr;
+				auto test_test = bin_dir_out + (current_dir.empty() ? "" : "\\") + current_dir + "\\" + file_name;
+				errno_t err2 = fopen_s(&fout, (bin_dir_out + (current_dir.empty() ? "" : "\\") + current_dir + "\\" + file_name).c_str(), "wb");
+				if (!fout)
+					throw 0;
+				mrb_dump_irep_binary(state, irep, 0, fout);
+				fclose(fout);
+			}
+
+			mrb_irep_free(state, irep);
+			mrb_close(state);
+
+		} while (::FindNextFile(hFind, &fd));
+		::FindClose(hFind);
+	}
+}
+
 int main(int argc, char ** argv)
 {
 	// u all "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin" "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin.txt" 1
@@ -355,61 +487,7 @@ int main(int argc, char ** argv)
 	if (mode == "p")
 		std::cout << "Repacking files..." << std::endl;
 
-	WIN32_FIND_DATA fd;
-	HANDLE hFind = ::FindFirstFile((dir_in + R"(\*.bin)").c_str(), &fd);
-	if (hFind != INVALID_HANDLE_VALUE)
-	{
-		do
-		{
-			if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-				continue;
-
-			std::string file_name(fd.cFileName);
-			std::cout << file_name << std::endl;
-
-			mrb_state * state = mrb_open();
-
-			FILE * fin = nullptr;
-			fopen_s(&fin, (dir_in + "\\" + file_name).c_str(), "rb");
-			mrb_irep * irep = mrb_read_irep_file(state, fin);
-			fclose(fin);
-
-			//codedump_recur(state, irep);
-
-			if (mode == "u")
-			{
-				State st;
-				codedump_recur(state, irep, &st);
-				if (st.mode != 0)
-					throw 0;
-				files.push_back(std::make_pair(file_name, st));
-			}
-			if (mode == "p")
-			{
-				State st;
-				for (int i = 0; i < (int)files.size(); i++)
-				{
-					if (files[i].first == file_name)
-					{
-						st = files[i].second;
-						break;
-					}
-				}
-				st.read = false;
-				st.lang_index = lang_index;
-				codedump_recur(state, irep, &st);
-
-				FILE * fout = nullptr;
-				fopen_s(&fout, (bin_dir_out + "\\" + file_name).c_str(), "wb");
-				mrb_dump_irep_binary(state, irep, 0, fout);
-				fclose(fout);
-			}
-
-			mrb_irep_free(state, irep);
-			mrb_close(state);
-		} while (::FindNextFile(hFind, &fd));
-		::FindClose(hFind);
-	}
+	find_files(mode, lang_index, files, dir_in, bin_dir_out, "");
 
 	if (mode == "u")
 	{
