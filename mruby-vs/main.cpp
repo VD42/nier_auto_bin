@@ -8,6 +8,7 @@
 #include <list>
 #include <direct.h>
 #include <io.h>
+#include <algorithm>
 #include "mruby/dump.h"
 #include "mruby/../../src/opcode.h"
 #include "mruby/string.h"
@@ -463,6 +464,9 @@ int main(int argc, char ** argv)
 				write_line(f_es, "[[" + files[i].first + "]]");
 				write_line(f_ko, "[[" + files[i].first + "]]");
 				write_line(f_cn, "[[" + files[i].first + "]]");
+
+				std::sort(files[i].second.texts.begin(), files[i].second.texts.end(), [](const std::pair<std::string, std::vector<std::string>> & a, const std::pair<std::string, std::vector<std::string>> & b) { return a.first < b.first; });
+
 				for (int j = 0; j < (int)files[i].second.texts.size(); j++)
 				{
 					if (
