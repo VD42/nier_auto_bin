@@ -88,7 +88,7 @@ void codedump(mrb_state *mrb, mrb_irep *irep, State* state)
 
 	if (!irep) return;
 
-	for (i = 9; i < (int)irep->ilen; i++)
+	for (i = 1; i < (int)irep->ilen; i++)
 	{
 		ai = mrb_gc_arena_save(mrb);
 		c_cur = irep->iseq[i];
@@ -96,17 +96,20 @@ void codedump(mrb_state *mrb, mrb_irep *irep, State* state)
 		{
 			std::string id(mrb_sym2name(mrb, irep->syms[GETARG_Bx(c_cur)]));
 			int c_arr = irep->iseq[i - 1];
-			if (GET_OPCODE(c_arr) == OP_ARRAY && GETARG_C(c_arr) == 8)
+			if (GET_OPCODE(c_arr) == OP_ARRAY && (GETARG_C(c_arr) == 6 || GETARG_C(c_arr) == 8) && i >= GETARG_C(c_arr))
 			{
-				std::vector<int> c_strs(8);
-				c_strs[0] = irep->iseq[i - 9];
-				c_strs[1] = irep->iseq[i - 8];
-				c_strs[2] = irep->iseq[i - 7];
-				c_strs[3] = irep->iseq[i - 6];
-				c_strs[4] = irep->iseq[i - 5];
-				c_strs[5] = irep->iseq[i - 4];
-				c_strs[6] = irep->iseq[i - 3];
-				c_strs[7] = irep->iseq[i - 2];
+				std::vector<int> c_strs(GETARG_C(c_arr));
+				c_strs[0] = irep->iseq[i - 7 - (c_strs.size() == 8 ? 2 : 0)];
+				c_strs[1] = irep->iseq[i - 6 - (c_strs.size() == 8 ? 2 : 0)];
+				c_strs[2] = irep->iseq[i - 5 - (c_strs.size() == 8 ? 2 : 0)];
+				c_strs[3] = irep->iseq[i - 4 - (c_strs.size() == 8 ? 2 : 0)];
+				c_strs[4] = irep->iseq[i - 3 - (c_strs.size() == 8 ? 2 : 0)];
+				c_strs[5] = irep->iseq[i - 2 - (c_strs.size() == 8 ? 2 : 0)];
+				if (c_strs.size() == 8)
+				{
+					c_strs[6] = irep->iseq[i - 3];
+					c_strs[7] = irep->iseq[i - 2];
+				}
 
 				bool all_right = true;
 				for (int j = 0; j < (int)c_strs.size(); j++)
@@ -153,10 +156,16 @@ void codedump(mrb_state *mrb, mrb_irep *irep, State* state)
 									//if (GETARG_Bx(c) != new_bx)
 									//	throw 0;
 
-									irep->iseq[i - 9 + j] = MKOP_ABx(GET_OPCODE(c_strs[j]), GETARG_A(c_strs[j]), new_bx);
+									irep->iseq[i - 7 + j - (c_strs.size() == 8 ? 2 : 0)] = MKOP_ABx(GET_OPCODE(c_strs[j]), GETARG_A(c_strs[j]), new_bx);
 								}
 							}
 						}
+					}
+
+					if (state->read && c_strs.size() == 6)
+					{
+						state->texts.back().second.push_back("");
+						state->texts.back().second.push_back("");
 					}
 				}
 			}
@@ -331,6 +340,9 @@ int main(int argc, char ** argv)
 {
 	// u all "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin" "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin.txt" 1
 	// u us "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin" "D:\Downloads\NieRAutomata™ .bin\NieRAutomata™ .bin.txt" 1
+
+	// u all "F:\___SOURCES___\nier\DLC 3C3C1D119440927" "F:\___SOURCES___\nier\DLC 3C3C1D119440927.txt" 1
+	// p all "F:\___SOURCES___\nier\DLC 3C3C1D119440927" "F:\___SOURCES___\nier\DLC 3C3C1D119440927.txt" "F:\___SOURCES___\nier\DLC 3C3C1D119440927 2"
 
 	// u all "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt" 1
 	// u us "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt2" 1
