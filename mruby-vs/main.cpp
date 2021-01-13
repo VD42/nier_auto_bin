@@ -150,13 +150,15 @@ void codedump(mrb_state *mrb, mrb_irep *irep, State* state)
 									if (test_c != c_strs[j])
 										throw 0;
 
-									mrb_value v = mrb_str_new(mrb, state->texts[str_index].second[j].c_str(), state->texts[str_index].second[j].size());
+									mrb_gc_free_str(mrb, RSTRING(irep->pool[GETARG_Bx(c_strs[j])]));
+									mrb_free(mrb, mrb_obj_ptr(irep->pool[GETARG_Bx(c_strs[j])]));
+									irep->pool[GETARG_Bx(c_strs[j])] = mrb_str_pool(mrb, mrb_str_new(mrb, state->texts[str_index].second[j].c_str(), state->texts[str_index].second[j].size()));
 
-									int new_bx = new_string(mrb, irep, v);
+									//int new_bx = new_string(mrb, irep, v);
 									//if (GETARG_Bx(c) != new_bx)
 									//	throw 0;
 
-									irep->iseq[i - 7 + j - (c_strs.size() == 8 ? 2 : 0)] = MKOP_ABx(GET_OPCODE(c_strs[j]), GETARG_A(c_strs[j]), new_bx);
+									//irep->iseq[i - 7 + j - (c_strs.size() == 8 ? 2 : 0)] = MKOP_ABx(GET_OPCODE(c_strs[j]), GETARG_A(c_strs[j]), new_bx);
 								}
 							}
 						}
@@ -351,6 +353,9 @@ int main(int argc, char ** argv)
 
 	// p all "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt" "F:\___SOURCES___\nier\NieRAutomata™ .bin2"
 	// p us "F:\___SOURCES___\nier\NieRAutomata™ .bin" "F:\___SOURCES___\nier\NieRAutomata™ .bin.txt2" "F:\___SOURCES___\nier\NieRAutomata™ .bin3"
+
+	// u all "F:\___SOURCES___\nier\new_test" "F:\___SOURCES___\nier\new_test_text" 0
+	// p us "F:\___SOURCES___\nier\new_test" "F:\___SOURCES___\nier\new_test_text" "F:\___SOURCES___\nier\new_test_out"
 
 	if (argc < 6)
 	{
